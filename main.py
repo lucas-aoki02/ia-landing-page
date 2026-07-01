@@ -1,10 +1,6 @@
 import os
 import json
 import base64
-import threading
-import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import streamlit as st
 from groq import Groq
 from dotenv import load_dotenv
@@ -27,40 +23,48 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # ===================================================================
-# 🔌 CRIAÇÃO DA API REAL (FASTAPI) EM BACKGROUND
+# 🔌 ENDPOINT REST API INTERCEPTOR NATIVO
 # ===================================================================
-app_api = FastAPI(title="Fintech Credit API")
+query_params = {}
 
-app_api.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app_api.get("/api/analise")
-@app_api.post("/api/analise")
-def api_analise_credito(
-    nome: str = "Cliente API",
-    idade: int = 30,
-    renda: float = 5000.0,
-    score: int = 500,
-    valor: float = 10000.0
-):
+# Extração horizontal compatível com localhost e servidores de nuvem
+if hasattr(st, "query_parameters"):
     try:
+        query_params = {k: v for k, v in st.query_parameters.to_dict().items()}
+    except Exception:
+        try:
+            query_params = {k: v for k, v in st.query_parameters.items()}
+        except Exception:
+            pass
+elif hasattr(st, "experimental_get_query_params"):
+    try:
+        raw_params = st.experimental_get_query_params()
+        query_params = {k: v[0] if isinstance(v, list) and len(v) > 0 else v for k, v in raw_params.items()}
+    except Exception:
+        pass
+
+# Intercepta se o parâmetro api_mode estiver na URL
+if "api_mode" in query_params or query_params.get("api_mode") == "true":
+    try:
+        nome_api = query_params.get("nome", "Cliente API")
+        idade_api = query_params.get("idade", "30")
+        renda_api = query_params.get("renda", "5000")
+        score_api = query_params.get("score", "500")
+        valor_api = query_params.get("valor", "10000")
+        
         prompt_api = f"""
         Aja como o motor de análise de risco de crédito de uma Fintech.
         Analise o seguinte perfil de forma estrita:
-        - Cliente: {nome}
-        - Idade: {idade} anos
-        - Renda Mensal: R$ {renda}
-        - Score de Crédito Serasa: {score}
-        - Valor do Empréstimo Solicitado: R$ {valor}
+        - Cliente: {nome_api}
+        - Idade: {idade_api} anos
+        - Renda Mensal: R$ {renda_api}
+        - Score de Crédito Serasa: {score_api}
+        - Valor do Empréstimo Solicitado: R$ {valor_api}
         
         Responda de forma direta e estritamente em JSON.
         O formato JSON válido deve conter exatamente as chaves: 'status' (APROVADO ou REPROVADO), 'taxa_juros_anual' (string com a taxa sugerida ex: '12%') e 'justificativa' (uma frase curta com no máximo 10 palavras).
         """
+        
         completion = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt_api}],
             model="llama-3.1-8b-instant",
@@ -68,21 +72,13 @@ def api_analise_credito(
             max_tokens=100,
             response_format={"type": "json_object"}
         )
-        return json.loads(completion.choices[0].message.content)
+        
+        # Devolve o JSON bruto para o terminal do aluno e encerra
+        st.text(completion.choices[0].message.content)
+        st.stop()
     except Exception as e:
-        return {"error": str(e)}
-
-# Função para iniciar o FastAPI de forma isolada na porta 8000
-def rodar_fastapi():
-    try:
-        uvicorn.run(app_api, host="0.0.0.0", port=8000, log_level="warning")
-    except Exception:
-        pass
-
-# Dispara a thread em background usando um atributo global clássico para não dar conflito com o session_state antes do carregamento
-if not hasattr(st, "_fastapi_server_running"):
-    st._fastapi_server_running = True
-    threading.Thread(target=rodar_fastapi, daemon=True).start()
+        st.text(json.dumps({"error": str(e)}))
+        st.stop()
 
 # ===================================================================
 # 🖼️ CONFIGURAÇÃO DA IMAGEM DE FUNDO LOCAL
@@ -157,7 +153,7 @@ with st.container():
     st.markdown("""
     <div class="retro-container">
         <h1>Análise de Crédito com IA</h1>
-        <h3><p style='text-align: center; color: #00ffff; margin: 10px 0;'>STAGE 4: AUTOMACAO E REST API REAL</p></h3>
+        <h3><p style='text-align: center; color: #00ffff; margin: 10px 0;'>STAGE 4: AUTOMACAO E API INTEGRADA</p></h3>
         <p style='text-align: center; font-size: 8pt; color: #ffffff; margin-top: 10px;'>CONECTE VIA CODIGO LOCAL OU UTILIZE A INTERFACE ABAIXO.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -177,15 +173,14 @@ with col1:
     if st.button("🚀 EXECUTE METHOD: POST"):
         prompt = f"""
         Aja como o motor de análise de risco de crédito de uma Fintech.
-        Analise o seguinte perfil de forma estrita:
+        Analise o Clinical Profile:
         - Cliente: {nome}
         - Idade: {idade} anos
         - Renda Mensal: R$ {renda}
         - Score de Crédito Serasa: {score}
         - Valor do Empréstimo Solicitado: R$ {valor_solicitado}
         
-        Responda de forma direta e estritamente em JSON.
-        O formato JSON válido deve conter exatamente as chaves: 'status' (APROVADO ou REPROVADO), 'taxa_juros_anual' (string com a taxa sugerida ex: '12%') e 'justificativa' (uma frase curta com no máximo 10 palavras).
+        Responda em formato JSON contendo exactamente as chaves: 'status', 'taxa_juros_anual' e 'justificativa'.
         """
         with st.spinner("🧠 GROQ LOADING..."):
             try:
@@ -209,16 +204,17 @@ with col1:
 with col2:
     st.markdown("<h3>💻 PLAYER 2: CODE MODE</h3>", unsafe_allow_html=True)
     st.markdown("""
-    <p style='font-size: 8pt; line-height: 1.5; color: #ffffff;'>CRIE UM SCRIPT LOCAL APONTANDO PARA A PORTA DA API REAL (8000):</p>
+    <p style='font-size: 8pt; line-height: 1.5; color: #ffffff;'>EXECUTE REQUISIÇÕES DIRETAS DO SEU COMPUTADOR USANDO O SEU URL DE DEPLOY:</p>
     """, unsafe_allow_html=True)
     
     codigo_exemplo = """# Script do Aluno: testar_api.py
 import requests
 
-# Mude para o seu domínio do streamlit adicionando ':8000/api/analise' no final!
-url_api = "http://localhost:8000/api/analise" 
+# Defina a URL da sua aplicação no Streamlit Cloud
+url_api = "https://SUA-URL-AQUI.streamlit.app/"
 
 dados_cliente = {
+    "api_mode": "true",
     "nome": "Mariana Silva",
     "idade": 34,
     "renda": 18000.0,
@@ -227,11 +223,13 @@ dados_cliente = {
 }
 
 print("📡 CONNECTING TO SERVER...")
-resposta = requests.post(url_api, params=dados_cliente)
+# Mudamos para GET horizontal devido ao redirecionamento nativo do ecossistema Cloud
+resposta = requests.get(url_api, params=dados_cliente)
 
-if resposta.status_code == 200:
+try:
     print("📥 DATA RECEIVED:", resposta.json())
-else:
-    print("❌ CONNECTION FAILED:", resposta.status_code)
+except Exception:
+    # Captura caso o retorno venha envelopado no seletor de texto
+    print("📥 DATA RECEIVED:", resposta.text.strip())
 """
     st.code(codigo_exemplo, language="python")
