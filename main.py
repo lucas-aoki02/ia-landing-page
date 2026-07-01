@@ -137,6 +137,63 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # -------------------------------------------------------------------
+# 🔌 ENDPOINT REST API INTERCEPTOR (Para o script do aluno funcionar)
+# -------------------------------------------------------------------
+# Extração horizontal protegida contra falhas de atributos no ambiente local
+query_params = {}
+
+if hasattr(st, "query_parameters"):
+    try:
+        query_params = {k: v for k, v in st.query_parameters.to_dict().items()}
+    except Exception:
+        try:
+            query_params = {k: v for k, v in st.query_parameters.items()}
+        except Exception:
+            pass
+elif hasattr(st, "experimental_get_query_params"):
+    try:
+        raw_params = st.experimental_get_query_params()
+        query_params = {k: v[0] if isinstance(v, list) and len(v) > 0 else v for k, v in raw_params.items()}
+    except Exception:
+        pass
+
+if "api_mode" in query_params:
+    try:
+        nome_api = query_params.get("nome", "Cliente API")
+        idade_api = query_params.get("idade", "30")
+        renda_api = query_params.get("renda", "5000")
+        score_api = query_params.get("score", "500")
+        valor_api = query_params.get("valor", "10000")
+        
+        prompt_api = f"""
+        Aja como o motor de análise de risco de crédito de uma Fintech.
+        Analise o seguinte perfil de forma estrita:
+        - Cliente: {nome_api}
+        - Idade: {idade_api} anos
+        - Renda Mensal: R$ {renda_api}
+        - Score de Crédito Serasa: {score_api}
+        - Valor do Empréstimo Solicitado: R$ {valor_api}
+        
+        Responda de forma direta e estritamente em JSON.
+        O formato JSON válido deve conter exatamente as chaves: 'status' (APROVADO ou REPROVADO), 'taxa_juros_anual' (string com a taxa sugerida ex: '12%') e 'justificativa' (uma frase curta com no máximo 10 palavras).
+        """
+        
+        completion = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt_api}],
+            model="llama-3.1-8b-instant",
+            temperature=0.1,
+            max_tokens=100,
+            response_format={"type": "json_object"}
+        )
+        
+        # Retorna a string JSON diretamente e encerra a execução antes do HTML do Streamlit
+        st.write(completion.choices[0].message.content)
+        st.stop()
+    except Exception as e:
+        st.write(json.dumps({"error": str(e)}))
+        st.stop()
+
+# -------------------------------------------------------------------
 # ELEMENTOS VISUAIS DA LANDING PAGE
 # -------------------------------------------------------------------
 
@@ -210,18 +267,20 @@ with col2:
     codigo_exemplo = """# Script do Aluno: testar_api.py
 import requests
 
-url_api = "SUA_URL_DO_STREAMLIT_AQUI"
+# Ative o modo API passando os parâmetros na horizontal via URL
+url_api = "https://SUA_URL_DO_STREAMLIT_AQUI.streamlit.app/"
 
 dados_cliente = {
-    "nome_cliente": "Mariana Silva",
+    "api_mode": "true",
+    "nome": "Mariana Silva",
     "idade": 34,
-    "renda_mensal": 18000.0,
-    "score_credito": 890,
-    "valor_emprestimo": 120000.0
+    "renda": 18000.0,
+    "score": 890,
+    "valor": 120000.0
 }
 
 print("📡 CONNECTING TO SERVER...")
-resposta = requests.post(url_api, json=dados_cliente)
+resposta = requests.post(url_api, params=dados_cliente)
 
 if resposta.status_code == 200:
     print("📥 DATA RECEIVED:", resposta.json())
