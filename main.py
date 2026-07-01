@@ -1,10 +1,9 @@
 import os
 import json
 import base64
-import asyncio
 import threading
 import uvicorn
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import streamlit as st
 from groq import Groq
@@ -32,7 +31,6 @@ client = Groq(api_key=api_key)
 # ===================================================================
 app_api = FastAPI(title="Fintech Credit API")
 
-# Permite conexões de qualquer script externo
 app_api.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -74,16 +72,16 @@ def api_analise_credito(
     except Exception as e:
         return {"error": str(e)}
 
-# Função para iniciar o FastAPI em uma thread separada (porta 8000)
+# Função para iniciar o FastAPI de forma isolada na porta 8000
 def rodar_fastapi():
     try:
         uvicorn.run(app_api, host="0.0.0.0", port=8000, log_level="warning")
     except Exception:
         pass
 
-# Garante que a API só será iniciada uma única vez em segundo plano
-if "fastapi_started" not in st.session_state:
-    st.session_state["fastapi_started"] = True
+# Dispara a thread em background usando um atributo global clássico para não dar conflito com o session_state antes do carregamento
+if not hasattr(st, "_fastapi_server_running"):
+    st._fastapi_server_running = True
     threading.Thread(target=rodar_fastapi, daemon=True).start()
 
 # ===================================================================
