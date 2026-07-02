@@ -67,11 +67,11 @@ if "api_mode" in query_params or query_params.get("api_mode") == "true":
             query_params.get("score", "500"),
             query_params.get("valor", "10000")
         )
-        # Envelopa o JSON em uma tag estrita de código para o BeautifulSoup do aluno capturar facilmente
-        st.code(res_json, language="json")
+        # Exibe o JSON de forma limpa e visível tanto na tela quanto para o scraper do aluno
+        st.write(f"PRODUCAO_JSON: {res_json}")
         st.stop()
     except Exception as e:
-        st.code(json.dumps({"error": str(e)}), language="json")
+        st.write(f"PRODUCAO_JSON: {{\"error\": \"{str(e)}\"}}")
         st.stop()
 
 # ===================================================================
@@ -180,7 +180,7 @@ with col1:
 with col2:
     st.markdown("<h3>💻 PLAYER 2: CODE MODE</h3>", unsafe_allow_html=True)
     st.markdown("""
-    <p style='font-size: 8pt; line-height: 1.5; color: #ffffff;'>MÉTODO DE EXTRAÇÃO COMPATÍVEL COM INFRAESTRUTURA CLOUD (REQUER BeautifulSoup):</p>
+    <p style='font-size: 8pt; line-height: 1.5; color: #ffffff;'>MÉTODO DE EXTRAÇÃO DE OBJETO JSON DA URL DE PRODUÇÃO:</p>
     """, unsafe_allow_html=True)
     
     codigo_exemplo = """# Script do Aluno: testar_api.py
@@ -189,9 +189,9 @@ import json
 import urllib3
 from bs4 import BeautifulSoup
 
-# Desativa avisos de SSL inseguro no terminal do aluno
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# Substitua pela URL da sua aplicação no Streamlit Cloud
 url_api = "https://SUA-URL-AQUI.streamlit.app/"
 
 dados_cliente = {
@@ -207,17 +207,21 @@ print("📡 CONNECTING TO SERVER...")
 resposta = requests.get(url_api, params=dados_cliente, verify=False)
 
 try:
-    # O BeautifulSoup isola o texto legível e ignora tags de scripts internos do Streamlit Cloud
     soup = BeautifulSoup(resposta.text, "html.parser")
     texto_limpo = soup.get_text()
     
-    if "{" in texto_limpo:
-        inicio = texto_limpo.find("{")
-        fim = texto_limpo.rfind("}") + 1
-        json_final = json.loads(texto_limpo[inicio:fim])
+    if "PRODUCAO_JSON:" in texto_limpo:
+        # Encontra a tag exata impressa pelo servidor
+        trecho_json = texto_limpo.split("PRODUCAO_JSON:")[1].strip()
+        
+        # Garante o isolamento correto do objeto JSON
+        inicio = trecho_json.find("{")
+        fim = trecho_json.rfind("}") + 1
+        json_final = json.loads(trecho_json[inicio:fim])
+        
         print("📥 DATA RECEIVED:", json_final)
     else:
-        print("❌ FORMATO DE RETORNO INVÁLIDO. VERIFIQUE A URL.")
+        print("❌ FORMATO DE RETORNO INVÁLIDO. AGUARDE 1 MINUTO E TENTE NOVAMENTE.")
 except Exception as e:
     print("❌ ERRO AO FAZER PARSE:", e)
 """
