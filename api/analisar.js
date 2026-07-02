@@ -3,13 +3,16 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Inicializa o cliente do Groq de forma segura
 const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY,
 });
 
+// Banco de dados simulado em memória (Temporário para a sessão da Serverless Function)
+let bancoClientesSimulado = {
+    "1": { nome: "Mariana Silva", idade: 34, renda: 18000, score: 890, valor: 120000, status: "APROVADO" }
+};
+
 export default async function handler(req, res) {
-    // Permite que o script do aluno ou o Front-end acessem a API sem erros de CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -19,35 +22,76 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
 
+    const { method } = req;
+    const { id } = req.query; // Utilizado para READ individual, UPDATE e DELETE
+
     try {
-        // Captura os dados enviados via query string (?nome=...&idade=...)
-        const { nome, idade, renda, score, valor } = req.query;
+        // -----------------------------------------------------------------
+        // [C]RUD - CREATE (POST) -> Envia uma nova proposta para a IA avaliar e cadastrar
+        // -----------------------------------------------------------------
+        if (method === 'POST') {
+            const { nome, idade, renda, score, valor } = req.body || req.query;
+            
+            const promptApi = `Aja como o motor de risco de crédito de uma Fintech. Analise: Cliente: ${nome}, Idade: ${idade}, Renda: ${renda}, Score: ${score}, Valor: ${valor}. Responda em JSON rigoroso com as chaves: "status", "taxa_juros_anual" e "justificativa".`;
+            
+            const completion = await groq.chat.completions.create({
+                messages: [{ role: 'user', content: promptApi }],
+                model: 'llama-3.1-8b-instant',
+                temperature: 0.1,
+                response_format: { type: 'json_object' }
+            });
 
-        const promptApi = `
-        Aja como o motor de análise de risco de crédito de uma Fintech.
-        Analise o seguinte perfil de forma estrita:
-        - Cliente: ${nome || 'Cliente API'}
-        - Idade: ${idade || '30'} anos
-        - Renda Mensal: R$ ${renda || '5000'}
-        - Score de Crédito Serasa: ${score || '500'}
-        - Valor do Empréstimo Solicitado: R$ ${valor || '10000'}
-        
-        Responda de forma direta e estritamente em JSON válido.
-        O formato JSON deve conter exatamente as chaves com aspas duplas: "status" (APROVADO ou REPROVADO), "taxa_juros_anual" (ex: "12%") e "justificativa" (máximo 10 palavras).
-        `;
+            const resultadoIa = JSON.parse(completion.choices[0].message.content);
+            const novoId = String(Object.keys(bancoClientesSimulado).length + 1);
+            
+            // Salva no banco de dados simulado
+            bancoClientesSimulado[novoId] = { nome, idade, renda, score, valor, ...resultadoIa };
 
-        const completion = await groq.chat.completions.create({
-            messages: [{ role: 'user', content: promptApi }],
-            model: 'llama-3.1-8b-instant',
-            temperature: 0.1,
-            max_tokens: 100,
-            response_format: { type: 'json_object' }
-        });
+            return res.status(201).json({
+                mensagem: "🎉 [CREATE] Proposta criada e avaliada com sucesso!",
+                id: novoId,
+                dados: bancoClientesSimulado[novoId]
+            });
+        }
 
-        const respostaIa = JSON.parse(completion.choices[0].message.content);
+        // -----------------------------------------------------------------
+        // C[R]UD - READ (GET) -> Retorna a lista completa ou um cliente específico
+        // -----------------------------------------------------------------
+        if (method === 'GET') {
+            if (id) {
+                if (!bancoClientesSimulado[id]) return res.status(404).json({ erro: "Cliente não encontrado" });
+                return res.status(200).json({ mensagem: "📖 [READ] Registro localizado!", dados: bancoClientesSimulado[id] });
+            }
+            return res.status(200).json({ mensagem: "📖 [READ] Listando todos os registros!", banco: bancoClientesSimulado });
+        }
 
-        // DEVOLVE JSON PURO E REAL! Sem HTML em volta, sem bugs de parse!
-        return res.status(200).json(respostaIa);
+        // -----------------------------------------------------------------
+        // CR[U]D - UPDATE (PUT) -> Atualiza dados cadastrais de um ID existente
+        // -----------------------------------------------------------------
+        if (method === 'PUT') {
+            if (!id || !bancoClientesSimulado[id]) return res.status(404).json({ erro: "ID inválido para atualização" });
+            
+            const corpo = req.body || req.query;
+            bancoClientesSimulado[id].nome = corpo.nome || bancoClientesSimulado[id].nome;
+            bancoClientesSimulado[id].renda = corpo.renda || bancoClientesSimulado[id].renda;
+            
+            return res.status(200).json({
+                mensagem: `🔄 [UPDATE] Registro ID ${id} atualizado com sucesso!`,
+                dados: bancoClientesSimulado[id]
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // CRU[D] - DELETE (DELETE) -> Remove uma proposta do sistema
+        // -----------------------------------------------------------------
+        if (method === 'DELETE') {
+            if (!id || !bancoClientesSimulado[id]) return res.status(404).json({ erro: "ID inválido para exclusão" });
+            
+            delete bancoClientesSimulado[id];
+            return res.status(200).json({ mensagem: `🗑️ [DELETE] Registro ID ${id} foi removido do sistema.` });
+        }
+
+        return res.status(451).json({ erro: "Método HTTP não suportado nesta rota." });
 
     } catch (error) {
         return res.status(500).json({ error: error.message });
