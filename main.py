@@ -22,59 +22,54 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
+# Criar uma pasta pública estática caso não exista para servir dados limpos na Cloud
+STATIC_DIR = os.path.join(os.path.dirname(st.__file__), "static", "api")
+os.makedirs(STATIC_DIR, exist_ok=True)
+
 # ===================================================================
 # 🔌 ENDPOINT REST API INTERCEPTOR NATIVO
 # ===================================================================
 query_params = {}
-
-# Extração horizontal compatível com localhost e servidores de nuvem
 if hasattr(st, "query_parameters"):
-    try:
-        query_params = {k: v for k, v in st.query_parameters.to_dict().items()}
+    try: query_params = {k: v for k, v in st.query_parameters.to_dict().items()}
     except Exception:
-        try:
-            query_params = {k: v for k, v in st.query_parameters.items()}
-        except Exception:
-            pass
-elif hasattr(st, "experimental_get_query_params"):
-    try:
-        raw_params = st.experimental_get_query_params()
-        query_params = {k: v[0] if isinstance(v, list) and len(v) > 0 else v for k, v in raw_params.items()}
-    except Exception:
-        pass
+        try: query_params = {k: v for k, v in st.query_parameters.items()}
+        except Exception: pass
 
-# Intercepta se o parâmetro api_mode estiver na URL
+# Se o modo API for chamado na interface ou via query (para uso local)
+def processar_analise_ia(nome_api, idade_api, renda_api, score_api, valor_api):
+    prompt_api = f"""
+    Aja como o motor de análise de risco de crédito de uma Fintech.
+    Analise o seguinte perfil de forma estrita:
+    - Cliente: {nome_api}
+    - Idade: {idade_api} anos
+    - Renda Mensal: R$ {renda_api}
+    - Score de Crédito Serasa: {score_api}
+    - Valor do Empréstimo Solicitado: R$ {valor_api}
+    
+    Responda de forma direta e estritamente em JSON.
+    O formato JSON válido deve conter exatamente as chaves: 'status' (APROVADO ou REPROVADO), 'taxa_juros_anual' (string com a taxa sugerida ex: '12%') e 'justificativa' (uma frase curta com no máximo 10 palavras).
+    """
+    completion = client.chat.completions.create(
+        messages=[{"role": "user", "content": prompt_api}],
+        model="llama-3.1-8b-instant",
+        temperature=0.1,
+        max_tokens=100,
+        response_format={"type": "json_object"}
+    )
+    return json.loads(completion.choices[0].message.content)
+
+# Interceptador para Localhost (funciona direto na URL)
 if "api_mode" in query_params or query_params.get("api_mode") == "true":
     try:
-        nome_api = query_params.get("nome", "Cliente API")
-        idade_api = query_params.get("idade", "30")
-        renda_api = query_params.get("renda", "5000")
-        score_api = query_params.get("score", "500")
-        valor_api = query_params.get("valor", "10000")
-        
-        prompt_api = f"""
-        Aja como o motor de análise de risco de crédito de uma Fintech.
-        Analise o seguinte perfil de forma estrita:
-        - Cliente: {nome_api}
-        - Idade: {idade_api} anos
-        - Renda Mensal: R$ {renda_api}
-        - Score de Crédito Serasa: {score_api}
-        - Valor do Empréstimo Solicitado: R$ {valor_api}
-        
-        Responda de forma direta e estritamente em JSON.
-        O formato JSON válido deve conter exatamente as chaves: 'status' (APROVADO ou REPROVADO), 'taxa_juros_anual' (string com a taxa sugerida ex: '12%') e 'justificativa' (uma frase curta com no máximo 10 palavras).
-        """
-        
-        completion = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt_api}],
-            model="llama-3.1-8b-instant",
-            temperature=0.1,
-            max_tokens=100,
-            response_format={"type": "json_object"}
+        res = processar_analise_ia(
+            query_params.get("nome", "Cliente API"),
+            query_params.get("idade", "30"),
+            query_params.get("renda", "5000"),
+            query_params.get("score", "500"),
+            query_params.get("valor", "10000")
         )
-        
-        # Devolve o JSON bruto para o terminal do aluno e encerra
-        st.text(completion.choices[0].message.content)
+        st.text(json.dumps(res))
         st.stop()
     except Exception as e:
         st.text(json.dumps({"error": str(e)}))
@@ -148,7 +143,6 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# ELEMENTOS VISUAIS DA LANDING PAGE
 with st.container():
     st.markdown("""
     <div class="retro-container">
@@ -171,27 +165,14 @@ with col1:
     valor_solicitado = st.number_input("EMPRESTIMO (R$)", min_value=0.0, value=50000.0)
 
     if st.button("🚀 EXECUTE METHOD: POST"):
-        prompt = f"""
-        Aja como o motor de análise de risco de crédito de uma Fintech.
-        Analise o Clinical Profile:
-        - Cliente: {nome}
-        - Idade: {idade} anos
-        - Renda Mensal: R$ {renda}
-        - Score de Crédito Serasa: {score}
-        - Valor do Empréstimo Solicitado: R$ {valor_solicitado}
-        
-        Responda em formato JSON contendo exactamente as chaves: 'status', 'taxa_juros_anual' e 'justificativa'.
-        """
         with st.spinner("🧠 GROQ LOADING..."):
             try:
-                chat_completion = client.chat.completions.create(
-                    messages=[{"role": "user", "content": prompt}],
-                    model="llama-3.1-8b-instant",
-                    temperature=0.1,
-                    max_tokens=100,
-                    response_format={"type": "json_object"}
-                )
-                resposta_json = json.loads(chat_completion.choices[0].message.content)
+                resposta_json = processar_analise_ia(nome, idade, renda, score, valor_solicitado)
+                
+                # Salva a resposta estática limpa acessível globalmente via URL horizontal
+                with open(os.path.join(STATIC_DIR, "credito.json"), "w") as f:
+                    json.dump(resposta_json, f)
+                
                 st.write("---")
                 if resposta_json.get("status") == "APROVADO":
                     st.success(f"🟢 WIN! STATUS: {resposta_json.get('status')} | TAXA: {resposta_json.get('taxa_juros_anual')}")
@@ -204,32 +185,21 @@ with col1:
 with col2:
     st.markdown("<h3>💻 PLAYER 2: CODE MODE</h3>", unsafe_allow_html=True)
     st.markdown("""
-    <p style='font-size: 8pt; line-height: 1.5; color: #ffffff;'>EXECUTE REQUISIÇÕES DIRETAS DO SEU COMPUTADOR USANDO O SEU URL DE DEPLOY:</p>
+    <p style='font-size: 8pt; line-height: 1.5; color: #ffffff;'>LEITURA HORIZONTAL LIMPA DO ARQUIVO DE DADOS EM PRODUÇÃO (SEM CÁPSULA HTML):</p>
     """, unsafe_allow_html=True)
     
     codigo_exemplo = """# Script do Aluno: testar_api.py
 import requests
 
-# Defina a URL da sua aplicação no Streamlit Cloud
-url_api = "https://SUA-URL-AQUI.streamlit.app/"
-
-dados_cliente = {
-    "api_mode": "true",
-    "nome": "Mariana Silva",
-    "idade": 34,
-    "renda": 18000.0,
-    "score": 890,
-    "valor": 120000.0
-}
+# URL apontando para a pasta estática que o Streamlit Cloud expõe sem o bloqueio de HTML!
+url_api = "https://SUA-URL-AQUI.streamlit.app/st-allowed/api/credito.json"
 
 print("📡 CONNECTING TO SERVER...")
-# Mudamos para GET horizontal devido ao redirecionamento nativo do ecossistema Cloud
-resposta = requests.get(url_api, params=dados_cliente)
+resposta = requests.get(url_api)
 
-try:
+if resposta.status_code == 200:
     print("📥 DATA RECEIVED:", resposta.json())
-except Exception:
-    # Captura caso o retorno venha envelopado no seletor de texto
-    print("📥 DATA RECEIVED:", resposta.text.strip())
+else:
+    print("❌ FALHA AO CONECTAR:", resposta.status_code)
 """
     st.code(codigo_exemplo, language="python")
