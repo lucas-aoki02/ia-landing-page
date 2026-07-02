@@ -24,7 +24,7 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # ===================================================================
-# 🔌 ENDPOINT REST API INTERCEPTOR NATIVO (BLINDADO)
+# 🔌 ENDPOINT REST API INTERCEPTOR NATIVO
 # ===================================================================
 query_params = {}
 if hasattr(st, "query_parameters"):
@@ -46,8 +46,8 @@ def processar_analise_ia(nome_api, idade_api, renda_api, score_api, valor_api):
     - Score de Crédito Serasa: {score_api}
     - Valor do Empréstimo Solicitado: R$ {valor_api}
     
-    Responda de forma direta e estritamente em JSON.
-    O formato JSON válido deve conter exatamente as chaves: 'status' (APROVADO ou REPROVADO), 'taxa_juros_anual' (string com a taxa sugerida ex: '12%') e 'justificativa' (uma frase curta com no máximo 10 palavras).
+    Responda de forma direta e estritamente em JSON válido.
+    O formato JSON deve conter exatamente as chaves com aspas duplas: "status" (APROVADO ou REPROVADO), "taxa_juros_anual" (ex: "12%") e "justificativa" (máximo 10 palavras).
     """
     completion = client.chat.completions.create(
         messages=[{"role": "user", "content": prompt_api}],
@@ -56,7 +56,11 @@ def processar_analise_ia(nome_api, idade_api, renda_api, score_api, valor_api):
         max_tokens=100,
         response_format={"type": "json_object"}
     )
-    return completion.choices[0].message.content
+    
+    # Valida e limpa o JSON forçando a padronização para aspas duplas antes de retornar
+    texto_bruto = completion.choices[0].message.content
+    dados_validados = json.loads(texto_bruto)
+    return json.dumps(dados_validados, ensure_ascii=False)
 
 # Intercepta se o api_mode=true estiver na URL
 if "api_mode" in query_params or query_params.get("api_mode") == "true":
@@ -68,7 +72,6 @@ if "api_mode" in query_params or query_params.get("api_mode") == "true":
             query_params.get("score", "500"),
             query_params.get("valor", "10000")
         )
-        # Limpa qualquer buffer e cospe apenas o JSON bruto para a conexão do aluno
         sys.stdout.write(res_json)
         sys.stdout.flush()
         st.text(res_json)
@@ -191,6 +194,9 @@ with col2:
     codigo_exemplo = """# Script do Aluno: testar_api.py
 import requests
 import json
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 url_api = "https://SUA-URL-AQUI.streamlit.app/"
 
@@ -204,18 +210,22 @@ dados_cliente = {
 }
 
 print("📡 CONNECTING TO SERVER...")
-resposta = requests.get(url_api, params=dados_cliente)
+resposta = requests.get(url_api, params=dados_cliente, verify=False)
 texto_puro = resposta.text
 
 try:
-    # Como o Streamlit joga os dados no buffer, capturamos o JSON isolando-o de qualquer casca HTML
     if "{" in texto_puro:
         inicio = texto_puro.find("{")
         fim = texto_puro.rfind("}") + 1
-        json_final = json.loads(texto_puro[inicio:fim])
+        string_json = texto_puro[inicio:fim]
+        
+        # Correção horizontal preventiva caso o python venha com aspas simples convertidas
+        string_json = string_json.replace("'", '"')
+        
+        json_final = json.loads(string_json)
         print("📥 DATA RECEIVED:", json_final)
     else:
-        print("❌ FORMATO DE RETORNO INVÁLIDO.")
+        print("❌ FORMATO DE RETORNO INVÁLIDO. VERIFIQUE A URL.")
 except Exception as e:
     print("❌ ERRO AO FAZER PARSE:", e)
 """
