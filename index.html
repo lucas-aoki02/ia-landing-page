@@ -121,6 +121,7 @@
     </div>
 
     <div class="grid">
+        <!-- PLAYER 1: INTERFACE -->
         <div class="col">
             <h3>🕹️ PLAYER 1: INTERFACE</h3>
             
@@ -144,6 +145,7 @@
             <div id="boxResultado" class="resultado"></div>
         </div>
 
+        <!-- PLAYER 2: CODE MODE -->
         <div class="col">
             <h3>💻 PLAYER 2: CODE MODE</h3>
             <p style="font-size: 8pt; color: #ffffff; line-height: 1.5; margin-bottom: 15px;">
@@ -157,7 +159,7 @@
         // Monta de maneira dinâmica a URL absoluta para exibição no bloco de código do aluno
         const apiUrlExemplo = window.location.origin + "/api/analisar";
         
-        document.getElementById('codigoExemplo').innerText = `# Script do Aluno:
+        document.getElementById('codigoExemplo').innerText = `# Script do Aluno: exercicio_crud.py
 import requests
 
 url_api = "${apiUrlExemplo}"
@@ -175,7 +177,7 @@ resposta = requests.post(url_api, json=dados_cliente)
 print("📥 DATA RECEIVED:", resposta.json())`;
 
         // Função responsável por acionar o nosso back-end serverless na Vercel via POST estruturado
-        async function ejecutarAnalise() {
+        async function executarAnalise() {
             const btn = document.querySelector('button');
             const box = document.getElementById('boxResultado');
             
@@ -210,16 +212,21 @@ print("📥 DATA RECEIVED:", resposta.json())`;
 
                 const data = await response.json();
                 
-                // Mapeia o objeto de resposta baseado na estrutura nova do back-end de CRUD
-                const resultadoIa = data.dados;
+                // 🔥 TRAVA DE SEGURANÇA HORIZONTAL:
+                // Se o back-end novo de CRUD estiver rodando, pega de data.dados. Se for o antigo, pega da raiz (data)
+                const resultadoIa = data.dados ? data.dados : data;
+
+                const status = resultadoIa.status;
+                const taxa = resultadoIa.taxa_juros_anual;
+                const justificativa = resultadoIa.justificativa;
 
                 box.style.display = 'block';
-                if (resultadoIa.status === "APROVADO") {
+                if (status === "APROVADO") {
                     box.className = "resultado success";
-                    box.innerHTML = `🟢 WIN! STATUS: ${resultadoIa.status} | TAXA: ${resultadoIa.taxa_juros_anual}<br><br>JUSTIFICATIVA: ${resultadoIa.justificativa}`;
+                    box.innerHTML = `🟢 WIN! STATUS: ${status} | TAXA: ${taxa}<br><br>JUSTIFICATIVA: ${justificativa}`;
                 } else {
                     box.className = "resultado error";
-                    box.innerHTML = `🔴 GAME OVER! STATUS: ${resultadoIa.status}<br><br>JUSTIFICATIVA: ${resultadoIa.justificativa}`;
+                    box.innerHTML = `🔴 GAME OVER! STATUS: ${status}<br><br>JUSTIFICATIVA: ${justificativa}`;
                 }
             } catch (err) {
                 console.error("Erro capturado no fluxo:", err);
