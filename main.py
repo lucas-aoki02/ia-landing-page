@@ -1,7 +1,6 @@
 import os
 import json
 import base64
-import sys
 import streamlit as st
 from groq import Groq
 from dotenv import load_dotenv
@@ -47,7 +46,7 @@ def processar_analise_ia(nome_api, idade_api, renda_api, score_api, valor_api):
     - Valor do Empréstimo Solicitado: R$ {valor_api}
     
     Responda de forma direta e estritamente em JSON válido.
-    O formato JSON deve conter exatamente as chaves com aspas duplas: "status" (APROVADO ou REPROVADO), "taxa_juros_anual" (ex: "12%") e "justificativa" (máximo 10 palavras).
+    O formato JSON deve conter exatamente as chaves: "status", "taxa_juros_anual" e "justificativa".
     """
     completion = client.chat.completions.create(
         messages=[{"role": "user", "content": prompt_api}],
@@ -56,11 +55,7 @@ def processar_analise_ia(nome_api, idade_api, renda_api, score_api, valor_api):
         max_tokens=100,
         response_format={"type": "json_object"}
     )
-    
-    # Valida e limpa o JSON forçando a padronização para aspas duplas antes de retornar
-    texto_bruto = completion.choices[0].message.content
-    dados_validados = json.loads(texto_bruto)
-    return json.dumps(dados_validados, ensure_ascii=False)
+    return completion.choices[0].message.content
 
 # Intercepta se o api_mode=true estiver na URL
 if "api_mode" in query_params or query_params.get("api_mode") == "true":
@@ -72,14 +67,11 @@ if "api_mode" in query_params or query_params.get("api_mode") == "true":
             query_params.get("score", "500"),
             query_params.get("valor", "10000")
         )
-        sys.stdout.write(res_json)
-        sys.stdout.flush()
-        st.text(res_json)
+        # Envelopa o JSON em uma tag estrita de código para o BeautifulSoup do aluno capturar facilmente
+        st.code(res_json, language="json")
         st.stop()
     except Exception as e:
-        error_msg = json.dumps({"error": str(e)})
-        sys.stdout.write(error_msg)
-        st.text(error_msg)
+        st.code(json.dumps({"error": str(e)}), language="json")
         st.stop()
 
 # ===================================================================
@@ -188,14 +180,16 @@ with col1:
 with col2:
     st.markdown("<h3>💻 PLAYER 2: CODE MODE</h3>", unsafe_allow_html=True)
     st.markdown("""
-    <p style='font-size: 8pt; line-height: 1.5; color: #ffffff;'>MÉTODO DE EXTRAÇÃO DE OBJETO JSON DA URL DE PRODUÇÃO:</p>
+    <p style='font-size: 8pt; line-height: 1.5; color: #ffffff;'>MÉTODO DE EXTRAÇÃO COMPATÍVEL COM INFRAESTRUTURA CLOUD (REQUER BeautifulSoup):</p>
     """, unsafe_allow_html=True)
     
     codigo_exemplo = """# Script do Aluno: testar_api.py
 import requests
 import json
 import urllib3
+from bs4 import BeautifulSoup
 
+# Desativa avisos de SSL inseguro no terminal do aluno
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 url_api = "https://SUA-URL-AQUI.streamlit.app/"
@@ -211,18 +205,16 @@ dados_cliente = {
 
 print("📡 CONNECTING TO SERVER...")
 resposta = requests.get(url_api, params=dados_cliente, verify=False)
-texto_puro = resposta.text
 
 try:
-    if "{" in texto_puro:
-        inicio = texto_puro.find("{")
-        fim = texto_puro.rfind("}") + 1
-        string_json = texto_puro[inicio:fim]
-        
-        # Correção horizontal preventiva caso o python venha com aspas simples convertidas
-        string_json = string_json.replace("'", '"')
-        
-        json_final = json.loads(string_json)
+    # O BeautifulSoup isola o texto legível e ignora tags de scripts internos do Streamlit Cloud
+    soup = BeautifulSoup(resposta.text, "html.parser")
+    texto_limpo = soup.get_text()
+    
+    if "{" in texto_limpo:
+        inicio = texto_limpo.find("{")
+        fim = texto_limpo.rfind("}") + 1
+        json_final = json.loads(texto_limpo[inicio:fim])
         print("📥 DATA RECEIVED:", json_final)
     else:
         print("❌ FORMATO DE RETORNO INVÁLIDO. VERIFIQUE A URL.")
