@@ -121,7 +121,6 @@
     </div>
 
     <div class="grid">
-        <!-- PLAYER 1: INTERFACE -->
         <div class="col">
             <h3>🕹️ PLAYER 1: INTERFACE</h3>
             
@@ -145,7 +144,6 @@
             <div id="boxResultado" class="resultado"></div>
         </div>
 
-        <!-- PLAYER 2: CODE MODE -->
         <div class="col">
             <h3>💻 PLAYER 2: CODE MODE</h3>
             <p style="font-size: 8pt; color: #ffffff; line-height: 1.5; margin-bottom: 15px;">
@@ -159,7 +157,7 @@
         // Monta de maneira dinâmica a URL absoluta para exibição no bloco de código do aluno
         const apiUrlExemplo = window.location.origin + "/api/analisar";
         
-        document.getElementById('codigoExemplo').innerText = `# Script do Aluno: test03.py
+        document.getElementById('codigoExemplo').innerText = `# Script do Aluno:
 import requests
 
 url_api = "${apiUrlExemplo}"
@@ -173,34 +171,38 @@ dados_cliente = {
 }
 
 print("📡 CONNECTING TO API...")
-resposta = requests.get(url_api, params=dados_cliente)
-
-# Como a Vercel responde JSON puro, basta chamar .json() diretamente!
+resposta = requests.post(url_api, json=dados_cliente)
 print("📥 DATA RECEIVED:", resposta.json())`;
 
-        // Função responsável por acionar o nosso back-end serverless na Vercel
-        async function executarAnalise() {
+        // Função responsável por acionar o nosso back-end serverless na Vercel via POST estruturado
+        async function ejecutarAnalise() {
             const btn = document.querySelector('button');
             const box = document.getElementById('boxResultado');
             
             btn.innerText = "🧠 GROQ LOADING...";
             box.style.display = 'none';
 
-            // Captura de parâmetros
-            const params = new URLSearchParams({
+            // Captura os dados do formulário para o corpo (body) da requisição
+            const dadosFormulario = {
                 nome: document.getElementById('nome').value,
                 idade: document.getElementById('idade').value,
                 renda: document.getElementById('renda').value,
                 score: document.getElementById('score').value,
                 valor: document.getElementById('valor').value
-            });
+            };
 
             try {
-                // Monta a rota absoluta de requisição
-                const urlCompleta = `${window.location.origin}/api/analisar?${params}`;
-                console.log("Enviando requisição para:", urlCompleta);
+                const urlCompleta = `${window.location.origin}/api/analisar`;
+                console.log("Enviando requisição POST para:", urlCompleta);
 
-                const response = await fetch(urlCompleta);
+                // Envio em formato POST Real (application/json)
+                const response = await fetch(urlCompleta, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dadosFormulario)
+                });
                 
                 if (!response.ok) {
                     throw new Error(`Servidor respondeu com HTTP Status ${response.status}`);
@@ -208,13 +210,16 @@ print("📥 DATA RECEIVED:", resposta.json())`;
 
                 const data = await response.json();
                 
+                // Mapeia o objeto de resposta baseado na estrutura nova do back-end de CRUD
+                const resultadoIa = data.dados;
+
                 box.style.display = 'block';
-                if (data.status === "APROVADO") {
+                if (resultadoIa.status === "APROVADO") {
                     box.className = "resultado success";
-                    box.innerHTML = `🟢 WIN! STATUS: ${data.status} | TAXA: ${data.taxa_juros_anual}<br><br>JUSTIFICATIVA: ${data.justificativa}`;
+                    box.innerHTML = `🟢 WIN! STATUS: ${resultadoIa.status} | TAXA: ${resultadoIa.taxa_juros_anual}<br><br>JUSTIFICATIVA: ${resultadoIa.justificativa}`;
                 } else {
                     box.className = "resultado error";
-                    box.innerHTML = `🔴 GAME OVER! STATUS: ${data.status}<br><br>JUSTIFICATIVA: ${data.justificativa}`;
+                    box.innerHTML = `🔴 GAME OVER! STATUS: ${resultadoIa.status}<br><br>JUSTIFICATIVA: ${resultadoIa.justificativa}`;
                 }
             } catch (err) {
                 console.error("Erro capturado no fluxo:", err);
