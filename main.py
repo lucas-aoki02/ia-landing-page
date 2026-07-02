@@ -1,6 +1,7 @@
 import os
 import json
 import base64
+import sys
 import streamlit as st
 from groq import Groq
 from dotenv import load_dotenv
@@ -22,21 +23,19 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# Criar uma pasta pública estática caso não exista para servir dados limpos na Cloud
-STATIC_DIR = os.path.join(os.path.dirname(st.__file__), "static", "api")
-os.makedirs(STATIC_DIR, exist_ok=True)
-
 # ===================================================================
-# 🔌 ENDPOINT REST API INTERCEPTOR NATIVO
+# 🔌 ENDPOINT REST API INTERCEPTOR NATIVO (BLINDADO)
 # ===================================================================
 query_params = {}
 if hasattr(st, "query_parameters"):
-    try: query_params = {k: v for k, v in st.query_parameters.to_dict().items()}
+    try:
+        query_params = {k: v for k, v in st.query_parameters.to_dict().items()}
     except Exception:
-        try: query_params = {k: v for k, v in st.query_parameters.items()}
-        except Exception: pass
+        try:
+            query_params = {k: v for k, v in st.query_parameters.items()}
+        except Exception:
+            pass
 
-# Se o modo API for chamado na interface ou via query (para uso local)
 def processar_analise_ia(nome_api, idade_api, renda_api, score_api, valor_api):
     prompt_api = f"""
     Aja como o motor de análise de risco de crédito de uma Fintech.
@@ -57,22 +56,27 @@ def processar_analise_ia(nome_api, idade_api, renda_api, score_api, valor_api):
         max_tokens=100,
         response_format={"type": "json_object"}
     )
-    return json.loads(completion.choices[0].message.content)
+    return completion.choices[0].message.content
 
-# Interceptador para Localhost (funciona direto na URL)
+# Intercepta se o api_mode=true estiver na URL
 if "api_mode" in query_params or query_params.get("api_mode") == "true":
     try:
-        res = processar_analise_ia(
+        res_json = processar_analise_ia(
             query_params.get("nome", "Cliente API"),
             query_params.get("idade", "30"),
             query_params.get("renda", "5000"),
             query_params.get("score", "500"),
             query_params.get("valor", "10000")
         )
-        st.text(json.dumps(res))
+        # Limpa qualquer buffer e cospe apenas o JSON bruto para a conexão do aluno
+        sys.stdout.write(res_json)
+        sys.stdout.flush()
+        st.text(res_json)
         st.stop()
     except Exception as e:
-        st.text(json.dumps({"error": str(e)}))
+        error_msg = json.dumps({"error": str(e)})
+        sys.stdout.write(error_msg)
+        st.text(error_msg)
         st.stop()
 
 # ===================================================================
@@ -167,12 +171,8 @@ with col1:
     if st.button("🚀 EXECUTE METHOD: POST"):
         with st.spinner("🧠 GROQ LOADING..."):
             try:
-                resposta_json = processar_analise_ia(nome, idade, renda, score, valor_solicitado)
-                
-                # Salva a resposta estática limpa acessível globalmente via URL horizontal
-                with open(os.path.join(STATIC_DIR, "credito.json"), "w") as f:
-                    json.dump(resposta_json, f)
-                
+                res_raw = processar_analise_ia(nome, idade, renda, score, valor_solicitado)
+                resposta_json = json.loads(res_raw)
                 st.write("---")
                 if resposta_json.get("status") == "APROVADO":
                     st.success(f"🟢 WIN! STATUS: {resposta_json.get('status')} | TAXA: {resposta_json.get('taxa_juros_anual')}")
@@ -185,21 +185,38 @@ with col1:
 with col2:
     st.markdown("<h3>💻 PLAYER 2: CODE MODE</h3>", unsafe_allow_html=True)
     st.markdown("""
-    <p style='font-size: 8pt; line-height: 1.5; color: #ffffff;'>LEITURA HORIZONTAL LIMPA DO ARQUIVO DE DADOS EM PRODUÇÃO (SEM CÁPSULA HTML):</p>
+    <p style='font-size: 8pt; line-height: 1.5; color: #ffffff;'>MÉTODO DE EXTRAÇÃO DE OBJETO JSON DA URL DE PRODUÇÃO:</p>
     """, unsafe_allow_html=True)
     
     codigo_exemplo = """# Script do Aluno: testar_api.py
 import requests
+import json
 
-# URL apontando para a pasta estática que o Streamlit Cloud expõe sem o bloqueio de HTML!
-url_api = "https://SUA-URL-AQUI.streamlit.app/st-allowed/api/credito.json"
+url_api = "https://SUA-URL-AQUI.streamlit.app/"
+
+dados_cliente = {
+    "api_mode": "true",
+    "nome": "Mariana Silva",
+    "idade": 34,
+    "renda": 18000.0,
+    "score": 890,
+    "valor": 120000.0
+}
 
 print("📡 CONNECTING TO SERVER...")
-resposta = requests.get(url_api)
+resposta = requests.get(url_api, params=dados_cliente)
+texto_puro = resposta.text
 
-if resposta.status_code == 200:
-    print("📥 DATA RECEIVED:", resposta.json())
-else:
-    print("❌ FALHA AO CONECTAR:", resposta.status_code)
+try:
+    # Como o Streamlit joga os dados no buffer, capturamos o JSON isolando-o de qualquer casca HTML
+    if "{" in texto_puro:
+        inicio = texto_puro.find("{")
+        fim = texto_puro.rfind("}") + 1
+        json_final = json.loads(texto_puro[inicio:fim])
+        print("📥 DATA RECEIVED:", json_final)
+    else:
+        print("❌ FORMATO DE RETORNO INVÁLIDO.")
+except Exception as e:
+    print("❌ ERRO AO FAZER PARSE:", e)
 """
     st.code(codigo_exemplo, language="python")
