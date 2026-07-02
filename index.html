@@ -2,6 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FINTECH IA - LEVEL 4</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
@@ -13,36 +14,102 @@
             background-color: #0d0d1a;
             color: #00ff66;
             font-family: 'Press Start 2P', monospace;
-            margin: 0; padding: 20px;
+            margin: 0; 
+            padding: 20px;
         }
         .retro-container {
             background-color: rgba(17, 17, 34, 0.90);
-            padding: 25px; border-radius: 8px; border: 2px solid #1a1a3a;
-            box-shadow: 5px 5px 15px rgba(0,0,0,0.8); margin-bottom: 20px; text-align: center;
+            padding: 25px; 
+            border-radius: 8px; 
+            border: 2px solid #1a1a3a;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.8); 
+            margin-bottom: 20px; 
+            text-align: center;
         }
-        h1 { color: #ff0055; text-shadow: 3px 3px #000000; font-size: 22pt; margin: 0; }
-        h3 { color: #00ffff; font-size: 11pt; margin: 10px 0; }
-        .grid { display: flex; gap: 20px; }
+        h1 { 
+            color: #ff0055; 
+            text-shadow: 3px 3px #000000; 
+            font-size: 22pt; 
+            margin: 0; 
+        }
+        h3 { 
+            color: #00ffff; 
+            font-size: 11pt; 
+            margin: 10px 0 20px 0; 
+        }
+        .grid { 
+            display: flex; 
+            gap: 20px; 
+        }
         .col {
-            flex: 1; background-color: rgba(17, 17, 34, 0.90); padding: 25px;
-            border-radius: 8px; border: 2px solid #1a1a3a; box-shadow: 5px 5px 15px rgba(0,0,0,0.8);
+            flex: 1; 
+            background-color: rgba(17, 17, 34, 0.90); 
+            padding: 25px;
+            border-radius: 8px; 
+            border: 2px solid #1a1a3a; 
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.8);
         }
-        label { display: block; color: #00ff66; margin-top: 15px; font-size: 8pt; }
+        label { 
+            display: block; 
+            color: #00ff66; 
+            margin-top: 15px; 
+            font-size: 8pt; 
+        }
         input, select {
-            width: 100%; background-color: rgba(13, 13, 26, 0.95); border: 2px solid #00ff66;
-            color: #ffffff; padding: 8px; margin-top: 5px; box-sizing: border-box;
-            font-family: 'Press Start 2P', monospace; font-size: 9pt;
+            width: 100%; 
+            background-color: rgba(13, 13, 26, 0.95); 
+            border: 2px solid #00ff66;
+            color: #ffffff; 
+            padding: 10px; 
+            margin-top: 5px; 
+            box-sizing: border-box;
+            font-family: 'Press Start 2P', monospace; 
+            font-size: 9pt;
         }
         button {
-            background-color: #ff0055; color: #ffffff; border: 2px solid #ffffff;
-            box-shadow: 4px 4px 0px #000000; font-family: 'Press Start 2P', monospace;
-            font-size: 10pt; padding: 12px; width: 100%; margin-top: 20px; cursor: pointer;
+            background-color: #ff0055; 
+            color: #ffffff; 
+            border: 2px solid #ffffff;
+            box-shadow: 4px 4px 0px #000000; 
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10pt; 
+            padding: 15px; 
+            width: 100%; 
+            margin-top: 25px; 
+            cursor: pointer;
         }
-        button:hover { background-color: #00ff66; color: #000000; }
-        pre, code { background-color: rgba(0, 0, 0, 0.6); color: #ffcc00; padding: 10px; border-left: 4px solid #ff0055; display: block; font-size: 8pt; white-space: pre-wrap; }
-        .resultado { margin-top: 20px; padding: 15px; border-radius: 5px; font-size: 9pt; display: none; }
-        .success { background-color: rgba(0, 255, 102, 0.2); border: 2px solid #00ff66; color: #00ff66; }
-        .error { background-color: rgba(255, 0, 85, 0.2); border: 2px solid #ff0055; color: #ff0055; }
+        button:hover { 
+            background-color: #00ff66; 
+            color: #000000; 
+        }
+        pre, code { 
+            background-color: rgba(0, 0, 0, 0.6); 
+            color: #ffcc00; 
+            padding: 15px; 
+            border-left: 4px solid #ff0055; 
+            display: block; 
+            font-size: 8pt; 
+            white-space: pre-wrap; 
+            line-height: 1.6;
+        }
+        .resultado { 
+            margin-top: 25px; 
+            padding: 15px; 
+            border-radius: 5px; 
+            font-size: 9pt; 
+            display: none; 
+            line-height: 1.6;
+        }
+        .success { 
+            background-color: rgba(0, 255, 102, 0.15); 
+            border: 2px solid #00ff66; 
+            color: #00ff66; 
+        }
+        .error { 
+            background-color: rgba(255, 0, 85, 0.15); 
+            border: 2px solid #ff0055; 
+            color: #ff0055; 
+        }
     </style>
 </head>
 <body>
@@ -50,11 +117,14 @@
     <div class="retro-container">
         <h1>Análise de Crédito com IA</h1>
         <h3>STAGE 4: AUTOMACAO E API INTEGRADA (VERCEL STACK)</h3>
+        <p style="font-size: 8pt; color: #ffffff; margin: 0;">CONECTE VIA CÓDIGO LOCAL OU UTILIZE A INTERFACE ABAIXO.</p>
     </div>
 
     <div class="grid">
+        <!-- PLAYER 1: INTERFACE -->
         <div class="col">
             <h3>🕹️ PLAYER 1: INTERFACE</h3>
+            
             <label>NOME DO CLIENTE</label>
             <input type="text" id="nome" value="LUCAS AOKI">
 
@@ -67,7 +137,7 @@
             <label>SCORE SERASA</label>
             <input type="number" id="score" value="780" min="0" max="1000">
 
-            <label>EMPRESTIMO (R$)</label>
+            <label>EMPRÉSTIMO SOLICITADO (R$)</label>
             <input type="number" id="valor" value="50000">
 
             <button onclick="executarAnalise()">🚀 EXECUTE METHOD: POST</button>
@@ -75,16 +145,20 @@
             <div id="boxResultado" class="resultado"></div>
         </div>
 
+        <!-- PLAYER 2: CODE MODE -->
         <div class="col">
             <h3>💻 PLAYER 2: CODE MODE</h3>
-            <p style="font-size: 8pt; color: #ffffff; line-height: 1.5;">MÉTODO DE EXTRAÇÃO DIRETO E 100% REST (SEM SCRAPING):</p>
-            <pre><code id="codigoExemplo"># Carregando...</code></pre>
+            <p style="font-size: 8pt; color: #ffffff; line-height: 1.5; margin-bottom: 15px;">
+                MÉTODO DE EXTRAÇÃO DIRETO E 100% REST (SEM SCRAPING):
+            </p>
+            <pre><code id="codigoExemplo"># Detectando rota do servidor...</code></pre>
         </div>
     </div>
 
     <script>
-        // Atualiza dinamicamente o código de exemplo exibido na tela com a URL atual do deploy
+        // Monta de maneira dinâmica a URL absoluta para exibição no bloco de código do aluno
         const apiUrlExemplo = window.location.origin + "/api/analisar";
+        
         document.getElementById('codigoExemplo').innerText = `# Script do Aluno: test03.py
 import requests
 
@@ -104,12 +178,15 @@ resposta = requests.get(url_api, params=dados_cliente)
 # Como a Vercel responde JSON puro, basta chamar .json() diretamente!
 print("📥 DATA RECEIVED:", resposta.json())`;
 
-        async function ejecutarAnalise() {
+        // Função responsável por acionar o nosso back-end serverless na Vercel
+        async function executarAnalise() {
             const btn = document.querySelector('button');
             const box = document.getElementById('boxResultado');
+            
             btn.innerText = "🧠 GROQ LOADING...";
             box.style.display = 'none';
 
+            // Captura de parâmetros
             const params = new URLSearchParams({
                 nome: document.getElementById('nome').value,
                 idade: document.getElementById('idade').value,
@@ -119,21 +196,31 @@ print("📥 DATA RECEIVED:", resposta.json())`;
             });
 
             try {
-                const response = await fetch(`/api/analisar?${params}`);
+                // Monta a rota absoluta de requisição
+                const urlCompleta = `${window.location.origin}/api/analisar?${params}`;
+                console.log("Enviando requisição para:", urlCompleta);
+
+                const response = await fetch(urlCompleta);
+                
+                if (!response.ok) {
+                    throw new Error(`Servidor respondeu com HTTP Status ${response.status}`);
+                }
+
                 const data = await response.json();
                 
                 box.style.display = 'block';
                 if (data.status === "APROVADO") {
                     box.className = "resultado success";
-                    box.innerHTML = `🟢 WIN! STATUS: ${data.status} | TAXA: ${data.taxa_juros_anual}<br><br>INFO: ${data.justificativa}`;
+                    box.innerHTML = `🟢 WIN! STATUS: ${data.status} | TAXA: ${data.taxa_juros_anual}<br><br>JUSTIFICATIVA: ${data.justificativa}`;
                 } else {
                     box.className = "resultado error";
-                    box.innerHTML = `🔴 GAME OVER! STATUS: ${data.status}<br><br>INFO: ${data.justificativa}`;
+                    box.innerHTML = `🔴 GAME OVER! STATUS: ${data.status}<br><br>JUSTIFICATIVA: ${data.justificativa}`;
                 }
             } catch (err) {
+                console.error("Erro capturado no fluxo:", err);
                 box.style.display = 'block';
                 box.className = "resultado error";
-                box.innerText = "ERROR: " + err.message;
+                box.innerHTML = `❌ ERROR: ${err.message}<br><br><small style="font-size:7pt; color:#ff0055;">Abra o Console do Navegador (F12) para ver detalhes técnicos.</small>`;
             } finally {
                 btn.innerText = "🚀 EXECUTE METHOD: POST";
             }
